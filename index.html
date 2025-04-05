@@ -38,7 +38,6 @@
             const varsContainer = document.getElementById("vars-container");
             const addBtn = document.getElementById("addBtn");
             const newBtnLabelInput = document.getElementById("newBtnLabel");
-            const newBtnHTMLTextarea = document.getElementById("newBtnHTML");
             const buttonListDiv = document.getElementById("button-list");
             const customSendBtn = document.getElementById("customSendBtn");
 
@@ -124,7 +123,7 @@
                         htmlToSend += `<p><b>${vars[key] || key}:</b> ${filledVars[key]}</p>`; // בניית HTML דינמית
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
-                    if (toEmail) sendEmail(label, htmlToSend, toEmail, {}); // שולחים את ה-HTML שנבנה
+                    if (toEmail) sendEmail(label, htmlToSend, toEmail, filledVars); // שולחים את ה-HTML שנבנה ואת המשתנים
                 };
 
                 const updateBtn = document.createElement("button");
@@ -181,14 +180,15 @@
                 }
             }
 
-            function sendEmail(subject, html, toEmail, vars) { // vars כאן לא בשימוש ישיר
+            function sendEmail(subject, dynamicHTML, toEmail, filledVars) {
                 const params = {
                     to_email: toEmail,
-                    message_html: html, // html כאן הוא ה-HTML הדינמי
-                    subject: subject
+                    subject: subject,
+                    customHTML: dynamicHTML, // משתמשים ב-HTML הדינמי כערך של customHTML
+                    ...filledVars // מעבירים גם את המשתנים שהמשתמש מילא
                 };
 
-                emailjs.send("service_laxsrg8", "template_du4eoqo", params)
+                emailjs.send("service_laxsrg8", "template_du4eoqo", params) // ודא שה-ID של הטמפלט שלך הוא הנכון
                     .then(() => alert("הודעה נשלחה בהצלחה"))
                     .catch((err) => alert("שגיאה בשליחה: " + err));
             }
