@@ -61,7 +61,9 @@
                 getDocs(collection(db, "buttons")).then(querySnapshot => {
                     querySnapshot.forEach(doc => {
                         const data = doc.data();
-                        addButton(doc.id, data.label, data.template, data.vars); // vars עכשיו יכול להיות מערך
+                        // בודקים אם vars הוא אובייקט וממירים אותו למערך אם כן
+                        const varsArray = Array.isArray(data.vars) ? data.vars : Object.keys(data.vars).map(key => ({ key: key, placeholder: data.vars[key] }));
+                        addButton(doc.id, data.label, data.template, varsArray);
                     });
                 });
             }
@@ -88,7 +90,7 @@
                 if (!label || !template || vars.length === 0) return alert("נא למלא את שם הכפתור, התבנית ולהוסיף לפחות משתנה אחד");
 
                 try {
-                    const docRef = await addDoc(collection(db, "buttons"), { label, template, vars }); // שומרים את המערך vars
+                    const docRef = await addDoc(collection(db, "buttons"), { label, template, vars });
                     addButton(docRef.id, label, template, vars);
                     addFormDiv.classList.add("hidden");
                     newBtnLabelInput.value = "";
@@ -103,32 +105,32 @@
             function getVars() {
                 const names = document.querySelectorAll(".var-name");
                 const placeholders = document.querySelectorAll(".var-placeholder");
-                const vars = []; // עכשיו זה מערך
+                const vars = [];
                 names.forEach((el, i) => {
                     const key = el.value.trim();
                     const placeholder = placeholders[i].value.trim();
                     if (key && placeholder) {
-                        vars.push({ key: key, placeholder: placeholder }); // דוחפים אובייקט למערך
+                        vars.push({ key: key, placeholder: placeholder });
                     }
                 });
                 return vars;
             }
 
-            function addButton(id, label, template, vars) { // vars הוא מערך
+            function addButton(id, label, template, vars) { // vars הוא תמיד מערך עכשיו
                 const btnContainer = document.createElement("div");
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 btn.onclick = () => {
                     const filledVars = {};
                     let messageToSend = template;
-                    for (const varObj of vars) { // עוברים על המערך לפי הסדר
+                    for (const varObj of vars) {
                         const value = prompt(`הכנס ערך עבור ${varObj.placeholder || varObj.key}:`);
                         if (value !== null) {
                             filledVars[varObj.key] = value;
                             const regex = new RegExp(`{{${varObj.key}}}`, 'g');
                             messageToSend = messageToSend.replace(regex, value);
                         } else {
-                            return; // אם המשתמש ביטל, מפסיקים
+                            return;
                         }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
@@ -138,7 +140,6 @@
                 const updateBtn = document.createElement("button");
                 updateBtn.textContent = "עדכן משתנים";
                 updateBtn.onclick = () => {
-                    // צריך לעדכן גם את הלוגיקה של עדכון משתנים אם נרצה לשמור על הסדר
                     alert("עדכון סדר משתנים דורש שינוי משמעותי יותר בלוגיקה.");
                 };
 
