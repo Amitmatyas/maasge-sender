@@ -133,7 +133,10 @@
                         }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
-                    if (toEmail) sendEmail(label, messageToSend, toEmail, filledVars);
+                    if (toEmail) {
+                        console.log("filledVars לפני שליחה:", filledVars); // הוספנו את השורה הזו
+                        sendEmail(label, messageToSend, toEmail, filledVars);
+                    }
                 };
 
                 const updateBtn = document.createElement("button");
@@ -188,7 +191,7 @@
                     to_email: toEmail,
                     subject: subject,
                     message: message,
-                    ...templateParams // עכשיו מעבירים את המשתנים שהמשתמש הזין
+                    ...templateParams
                 };
 
                 emailjs.send("service_laxsrg8", "template_du4eoqo", params)
