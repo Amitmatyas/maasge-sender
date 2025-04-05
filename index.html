@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>">
-    <title>מערכת שליחת הודעות</title>
+    <title>✉️ מערכת שליחת הודעות</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
     <script type="module">
@@ -42,6 +42,10 @@
             const newBtnTemplateInput = document.getElementById("newBtnTemplate");
             const buttonListDiv = document.getElementById("button-list");
             const customSendBtn = document.getElementById("customSendBtn");
+            const openEditHTMLBtn = document.getElementById("openEditHTML");
+            const editHTMLDiv = document.getElementById("editHTMLDiv");
+            const customHTMLToSend = document.getElementById("customHTMLToSend");
+            const sendCustomHTMLBtn = document.getElementById("sendCustomHTMLBtn");
 
             loginForm.onsubmit = async (e) => {
                 e.preventDefault();
@@ -122,21 +126,17 @@
                 btn.textContent = label;
                 btn.onclick = () => {
                     const filledVars = {};
-                    let customHTML = template; // מתחילים עם התבנית כבסיס ל-customHTML
                     for (const varObj of vars) {
                         const value = prompt(`הכנס ערך עבור ${varObj.placeholder || varObj.key}:`);
                         if (value !== null) {
                             filledVars[varObj.key] = value;
-                            const regex = new RegExp(`{{${varObj.key}}}`, 'g');
-                            customHTML = customHTML.replace(regex, value); // משלבים את הערך ישירות לתוך customHTML
                         } else {
                             return;
                         }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                     if (toEmail) {
-                        console.log("customHTML לפני שליחה:", customHTML);
-                        sendEmail(label, toEmail, customHTML); // שולחים את הטקסט המלא כ-customHTML
+                        sendEmail(label, template, toEmail, filledVars);
                     }
                 };
 
@@ -187,11 +187,12 @@
                 }
             }
 
-            function sendEmail(subject, toEmail, customHTML) {
+            function sendEmail(subject, message, toEmail, templateParams) {
                 const params = {
                     to_email: toEmail,
                     subject: subject,
-                    customHTML: customHTML // שולחים את הטקסט המלא כ-customHTML
+                    message: message,
+                    ...templateParams
                 };
 
                 emailjs.send("service_laxsrg8", "template_du4eoqo", params)
@@ -199,11 +200,23 @@
                     .catch((err) => alert("שגיאה בשליחה: " + err));
             }
 
+            openEditHTMLBtn.onclick = () => {
+                editHTMLDiv.classList.toggle("hidden");
+            };
+
+            sendCustomHTMLBtn.onclick = () => {
+                const customHTML = customHTMLToSend.value;
+                const recipientEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
+                if (customHTML && recipientEmail) {
+                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail, {});
+                }
+            };
+
             customSendBtn.onclick = () => {
                 const customHTML = prompt("הכנס קוד HTML מותאם אישית לשליחה:");
                 const recipientEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                 if (customHTML && recipientEmail) {
-                    sendEmail("הודעה מותאמת אישית", recipientEmail, customHTML);
+                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail, {});
                 }
             };
 
@@ -237,6 +250,9 @@
             border: 1px solid #ccc;
             border-radius: 0.5rem;
             font-size: 1rem;
+        }
+        textarea {
+            min-height: 150px;
         }
         button {
             background: #0077cc;
@@ -276,6 +292,13 @@
             margin-bottom: 0.5rem;
             align-items: center;
         }
+        #editHTMLDiv {
+            margin-top: 1rem;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            background-color: #f9f9f9;
+        }
     </style>
 </head>
 <body>
@@ -292,7 +315,10 @@
     <div id="main-section" class="card hidden">
         <div class="title-bar">
             <h2>ניהול כפתורים</h2>
-            <button id="customSendBtn">שלח קוד HTML מותאם אישית</button>
+            <div>
+                <button id="customSendBtn">שלח HTML מותאם אישית (חד פעמי)</button>
+                <button id="openEditHTML">ערוך HTML מותאם אישית</button>
+            </div>
         </div>
 
         <button id="openAddForm">➕ הוסף כפתור חדש</button>
@@ -305,6 +331,12 @@
         </div>
 
         <div class="button-grid" id="button-list"></div>
+
+        <div id="editHTMLDiv" class="hidden">
+            <h3>ערוך HTML מותאם אישית</h3>
+            <textarea id="customHTMLToSend" placeholder="הכנס כאן את קוד ה-HTML של ההודעה"></textarea>
+            <button id="sendCustomHTMLBtn">שלח HTML זה</button>
+        </div>
     </div>
 </body>
 </html>
