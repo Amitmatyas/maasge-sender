@@ -6,6 +6,9 @@
   <title>מערכת שליחת הודעות</title>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
   <style>
     body {
       font-family: 'Heebo', sans-serif;
@@ -60,10 +63,24 @@
       display: inline-block;
       margin: 0.25rem 1%;
     }
+    .login-form {
+      max-width: 400px;
+      width: 100%;
+      margin: 0 auto;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <div class="card" id="main-section">
+  <div id="login-section" class="login-form">
+    <h2>התחברות</h2>
+    <input type="email" id="login-email" placeholder="דואר אלקטרוני" />
+    <input type="password" id="login-password" placeholder="סיסמה" />
+    <button id="login-btn">התחבר</button>
+    <div id="login-error" style="color: red;"></div>
+  </div>
+
+  <div id="main-section" class="card hidden">
     <div class="title-bar">
       <h2>ניהול כפתורים</h2>
       <button id="customSendBtn">שלח קוד HTML מותאם אישית</button>
@@ -73,7 +90,6 @@
     <div id="addForm" class="hidden">
       <input type="text" id="newBtnLabel" placeholder="שם כפתור" />
       <textarea id="newBtnHTML" placeholder="קוד HTML לשליחה"></textarea>
-      <input type="email" id="newBtnTargetEmail" placeholder="כתובת דוא"ל לשליחה" />
       <div id="vars-container"></div>
       <button id="addVar">➕ משתנה מותאם אישית</button>
       <button id="addBtn">הוסף</button>
@@ -85,6 +101,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDhhvKAmWxuYCFLidnLSsaWNmb04hfIjVs",
@@ -97,10 +114,32 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
     const auth = getAuth(app);
     emailjs.init("xMUcc8A1COpyd1SSY");
 
-    const mainSection = document.getElementById("main-section");
+    document.getElementById("login-btn").onclick = async () => {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        document.getElementById("login-section").classList.add("hidden");
+        document.getElementById("main-section").classList.remove("hidden");
+        loadButtonsFromDB();
+      } catch (error) {
+        document.getElementById("login-error").textContent = "פרטי התחברות שגויים";
+      }
+    };
+
+    function loadButtonsFromDB() {
+      const buttonList = document.getElementById("button-list");
+      getDocs(collection(db, "buttons")).then(querySnapshot => {
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          addButton(doc.id, data.label, data.html, data.vars);
+        });
+      });
+    }
 
     document.getElementById("openAddForm").onclick = () => {
       document.getElementById("addForm").classList.toggle("hidden");
@@ -118,18 +157,15 @@
       container.appendChild(placeholderInput);
     };
 
-    document.getElementById("addBtn").onclick = () => {
+    document.getElementById("addBtn").onclick = async () => {
       const label = document.getElementById("newBtnLabel").value;
       const html = document.getElementById("newBtnHTML").value;
-      const toEmail = document.getElementById("newBtnTargetEmail").value;
       const vars = getVars();
-      addButton(label, html, toEmail, vars);
-    };
+      if (!label || !html) return alert("נא למלא את כל השדות");
 
-    document.getElementById("customSendBtn").onclick = () => {
-      const html = prompt("הכנס קוד HTML מותאם אישית לשליחה:");
-      const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
-      if (html && toEmail) sendEmail("שליחה מותאמת", html, toEmail, {});
+      const docRef = await addDoc(collection(db, "buttons"), { label, html, vars });
+      addButton(docRef.id, label, html, vars);
+      document.getElementById("addForm").classList.add("hidden");
     };
 
     function getVars() {
@@ -140,24 +176,60 @@
         const key = el.value.trim();
         const placeholder = placeholders[i].value.trim();
         if (key) {
-          const value = prompt(`הכנס ערך עבור ${placeholder || key}:`);
-          vars[key] = value;
+          vars[key] = placeholder;
         }
       });
       return vars;
     }
 
-    function addButton(label, htmlCode, toEmail, vars) {
+    function addButton(id, label, htmlCode, vars) {
+      const btnContainer = document.createElement("div");
       const btn = document.createElement("button");
       btn.textContent = label;
       btn.onclick = () => {
         const filledVars = {};
         for (const key in vars) {
-          filledVars[key] = prompt(`הכנס ערך עבור ${key}:`, vars[key] || "");
+          filledVars[key] = prompt(`הכנס ערך עבור ${vars[key] || key}:`);
         }
-        sendEmail(label, htmlCode, toEmail, filledVars);
+        const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
+        if (toEmail) sendEmail(label, htmlCode, toEmail, filledVars);
       };
-      document.getElementById("button-list").appendChild(btn);
+
+      const updateBtn = document.createElement("button");
+      updateBtn.textContent = "עדכן";
+      updateBtn.onclick = () => {
+        const newHtml = prompt("הכנס קוד HTML החדש:", htmlCode);
+        if (newHtml) {
+          updateButtonInDB(id, newHtml);
+        }
+      };
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "מחק";
+      deleteBtn.onclick = () => {
+        deleteButtonFromDB(id);
+      };
+
+      btnContainer.appendChild(btn);
+      btnContainer.appendChild(updateBtn);
+      btnContainer.appendChild(deleteBtn);
+
+      document.getElementById("button-list").appendChild(btnContainer);
+    }
+
+    async function updateButtonInDB(id, newHtml) {
+      const buttonRef = doc(db, "buttons", id);
+      await updateDoc(buttonRef, {
+        html: newHtml
+      });
+      alert("הכפתור עודכן בהצלחה");
+    }
+
+    async function deleteButtonFromDB(id) {
+      const buttonRef = doc(db, "buttons", id);
+      await deleteDoc(buttonRef);
+      alert("הכפתור נמחק בהצלחה");
+      location.reload(); // רענון הדף אחרי המחיקה
     }
 
     function sendEmail(subject, html, toEmail, vars) {
