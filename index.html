@@ -121,21 +121,21 @@
                 btn.textContent = label;
                 btn.onclick = () => {
                     const filledVars = {};
-                    let messageToSend = template;
+                    let customHTML = template; // מתחילים עם התבנית כבסיס ל-customHTML
                     for (const varObj of vars) {
                         const value = prompt(`הכנס ערך עבור ${varObj.placeholder || varObj.key}:`);
                         if (value !== null) {
                             filledVars[varObj.key] = value;
                             const regex = new RegExp(`{{${varObj.key}}}`, 'g');
-                            messageToSend = messageToSend.replace(regex, value);
+                            customHTML = customHTML.replace(regex, value); // משלבים את הערך ישירות לתוך customHTML
                         } else {
                             return;
                         }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                     if (toEmail) {
-                        console.log("filledVars לפני שליחה:", filledVars); // הוספנו את השורה הזו
-                        sendEmail(label, messageToSend, toEmail, filledVars);
+                        console.log("customHTML לפני שליחה:", customHTML);
+                        sendEmail(label, toEmail, customHTML); // שולחים את הטקסט המלא כ-customHTML
                     }
                 };
 
@@ -186,12 +186,11 @@
                 }
             }
 
-            function sendEmail(subject, message, toEmail, templateParams) {
+            function sendEmail(subject, toEmail, customHTML) {
                 const params = {
                     to_email: toEmail,
                     subject: subject,
-                    message: message,
-                    ...templateParams
+                    customHTML: customHTML // שולחים את הטקסט המלא כ-customHTML
                 };
 
                 emailjs.send("service_laxsrg8", "template_du4eoqo", params)
@@ -203,7 +202,7 @@
                 const customHTML = prompt("הכנס קוד HTML מותאם אישית לשליחה:");
                 const recipientEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                 if (customHTML && recipientEmail) {
-                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail, {});
+                    sendEmail("הודעה מותאמת אישית", recipientEmail, customHTML);
                 }
             };
 
