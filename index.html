@@ -24,7 +24,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        emailjs.init("xMUcc8A1COpyd1SSY");
+        emailjs.init("xMUcc8A1COpyd1SSY"); // инициализация EmailJS с вашим Public Key
 
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById("login-form");
@@ -61,7 +61,6 @@
                 getDocs(collection(db, "buttons")).then(querySnapshot => {
                     querySnapshot.forEach(doc => {
                         const data = doc.data();
-                        // בודקים אם vars הוא אובייקט וממירים אותו למערך אם כן
                         const varsArray = Array.isArray(data.vars) ? data.vars : Object.keys(data.vars).map(key => ({ key: key, placeholder: data.vars[key] }));
                         addButton(doc.id, data.label, data.template, varsArray);
                     });
@@ -116,7 +115,7 @@
                 return vars;
             }
 
-            function addButton(id, label, template, vars) { // vars הוא תמיד מערך עכשיו
+            function addButton(id, label, template, vars) {
                 const btnContainer = document.createElement("div");
                 const btn = document.createElement("button");
                 btn.textContent = label;
@@ -134,7 +133,7 @@
                         }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
-                    if (toEmail) sendEmail(label, messageToSend, toEmail);
+                    if (toEmail) sendEmail(label, messageToSend, toEmail, filledVars);
                 };
 
                 const updateBtn = document.createElement("button");
@@ -184,14 +183,15 @@
                 }
             }
 
-            function sendEmail(subject, message, toEmail) {
+            function sendEmail(subject, message, toEmail, templateParams) {
                 const params = {
                     to_email: toEmail,
                     subject: subject,
-                    message: message
+                    message: message,
+                    ...templateParams // העברת משתנים נוספים לתבנית
                 };
 
-                emailjs.send("service_laxsrg8", "YOUR_TEMPLATE_ID", params)
+                emailjs.send("service_laxsrg8", "template_du4eoqo", params)
                     .then(() => alert("הודעה נשלחה בהצלחה"))
                     .catch((err) => alert("שגיאה בשליחה: " + err));
             }
@@ -200,7 +200,7 @@
                 const customHTML = prompt("הכנס קוד HTML מותאם אישית לשליחה:");
                 const recipientEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                 if (customHTML && recipientEmail) {
-                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail);
+                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail, {});
                 }
             };
 
