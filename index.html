@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,6 +15,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      direction: rtl;
     }
     .card {
       background: white;
@@ -62,16 +63,7 @@
   </style>
 </head>
 <body>
-  <div class="card" id="auth-section">
-    <h2>התחברות / הרשמה</h2>
-    <input type="text" id="displayName" placeholder="שם מלא" />
-    <input type="email" id="email" placeholder="דוא"ל" />
-    <input type="password" id="password" placeholder="סיסמה" />
-    <button id="signupBtn">הרשמה</button>
-    <button id="loginBtn">התחברות</button>
-  </div>
-
-  <div class="card hidden" id="main-section">
+  <div class="card" id="main-section">
     <div class="title-bar">
       <h2>ניהול כפתורים</h2>
       <button id="customSendBtn">שלח קוד HTML מותאם אישית</button>
@@ -92,12 +84,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import {
-      getAuth,
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      updateProfile
-    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDhhvKAmWxuYCFLidnLSsaWNmb04hfIjVs",
@@ -111,42 +98,9 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-
     emailjs.init("xMUcc8A1COpyd1SSY");
 
-    const authSection = document.getElementById("auth-section");
     const mainSection = document.getElementById("main-section");
-
-    document.getElementById("signupBtn").onclick = async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const displayName = document.getElementById("displayName").value;
-
-      try {
-        const res = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(res.user, { displayName });
-        switchToMain();
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    document.getElementById("loginBtn").onclick = async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        switchToMain();
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    function switchToMain() {
-      authSection.classList.add("hidden");
-      mainSection.classList.remove("hidden");
-    }
 
     document.getElementById("openAddForm").onclick = () => {
       document.getElementById("addForm").classList.toggle("hidden");
@@ -196,15 +150,18 @@
     function addButton(label, htmlCode, toEmail, vars) {
       const btn = document.createElement("button");
       btn.textContent = label;
-      btn.onclick = () => sendEmail(label, htmlCode, toEmail, vars);
+      btn.onclick = () => {
+        const filledVars = {};
+        for (const key in vars) {
+          filledVars[key] = prompt(`הכנס ערך עבור ${key}:`, vars[key] || "");
+        }
+        sendEmail(label, htmlCode, toEmail, filledVars);
+      };
       document.getElementById("button-list").appendChild(btn);
     }
 
     function sendEmail(subject, html, toEmail, vars) {
-      const user = auth.currentUser;
       const params = {
-        user_name: user.displayName || "משתמש",
-        user_email: user.email,
         to_email: toEmail,
         message_html: html,
         subject: subject,
