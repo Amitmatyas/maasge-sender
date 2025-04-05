@@ -38,11 +38,12 @@
             const varsContainer = document.getElementById("vars-container");
             const addBtn = document.getElementById("addBtn");
             const newBtnLabelInput = document.getElementById("newBtnLabel");
+            const newBtnTemplateInput = document.getElementById("newBtnTemplate");
             const buttonListDiv = document.getElementById("button-list");
             const customSendBtn = document.getElementById("customSendBtn");
 
             loginForm.onsubmit = async (e) => {
-                e.preventDefault(); // מניעת טעינה מחדש של הדף
+                e.preventDefault();
                 const email = document.getElementById("login-email").value;
                 const password = document.getElementById("login-password").value;
                 try {
@@ -56,11 +57,11 @@
             };
 
             function loadButtonsFromDB() {
-                buttonListDiv.innerHTML = ''; // ניקוי רשימת הכפתורים לפני טעינה מחדש
+                buttonListDiv.innerHTML = '';
                 getDocs(collection(db, "buttons")).then(querySnapshot => {
                     querySnapshot.forEach(doc => {
                         const data = doc.data();
-                        addButton(doc.id, data.label, data.vars); // שימו לב: לא מעבירים html
+                        addButton(doc.id, data.label, data.template, data.vars); // vars עכשיו יכול להיות מערך
                     });
                 });
             }
@@ -82,14 +83,16 @@
 
             async function addBtn_onClick() {
                 const label = newBtnLabelInput.value;
+                const template = newBtnTemplateInput.value;
                 const vars = getVars();
-                if (!label || Object.keys(vars).length === 0) return alert("נא למלא את שם הכפתור ולהוסיף לפחות משתנה אחד");
+                if (!label || !template || vars.length === 0) return alert("נא למלא את שם הכפתור, התבנית ולהוסיף לפחות משתנה אחד");
 
                 try {
-                    const docRef = await addDoc(collection(db, "buttons"), { label, vars }); // שומרים רק label ו-vars
-                    addButton(docRef.id, label, vars);
+                    const docRef = await addDoc(collection(db, "buttons"), { label, template, vars }); // שומרים את המערך vars
+                    addButton(docRef.id, label, template, vars);
                     addFormDiv.classList.add("hidden");
                     newBtnLabelInput.value = "";
+                    newBtnTemplateInput.value = "";
                     varsContainer.innerHTML = "";
                 } catch (error) {
                     console.error("שגיאה בהוספת כפתור: ", error);
@@ -100,43 +103,43 @@
             function getVars() {
                 const names = document.querySelectorAll(".var-name");
                 const placeholders = document.querySelectorAll(".var-placeholder");
-                const vars = {};
+                const vars = []; // עכשיו זה מערך
                 names.forEach((el, i) => {
                     const key = el.value.trim();
                     const placeholder = placeholders[i].value.trim();
-                    if (key) {
-                        vars[key] = placeholder;
+                    if (key && placeholder) {
+                        vars.push({ key: key, placeholder: placeholder }); // דוחפים אובייקט למערך
                     }
                 });
                 return vars;
             }
 
-            function addButton(id, label, vars) {
+            function addButton(id, label, template, vars) { // vars הוא מערך
                 const btnContainer = document.createElement("div");
                 const btn = document.createElement("button");
                 btn.textContent = label;
                 btn.onclick = () => {
                     const filledVars = {};
-                    let htmlToSend = '';
-                    for (const key in vars) {
-                        filledVars[key] = prompt(`הכנס ערך עבור ${vars[key] || key}:`);
-                        htmlToSend += `<p><b>${vars[key] || key}:</b> ${filledVars[key]}</p>`; // בניית HTML דינמית
+                    let messageToSend = template;
+                    for (const varObj of vars) { // עוברים על המערך לפי הסדר
+                        const value = prompt(`הכנס ערך עבור ${varObj.placeholder || varObj.key}:`);
+                        if (value !== null) {
+                            filledVars[varObj.key] = value;
+                            const regex = new RegExp(`{{${varObj.key}}}`, 'g');
+                            messageToSend = messageToSend.replace(regex, value);
+                        } else {
+                            return; // אם המשתמש ביטל, מפסיקים
+                        }
                     }
                     const toEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
-                    if (toEmail) sendEmail(label, htmlToSend, toEmail, filledVars); // שולחים את ה-HTML שנבנה ואת המשתנים
+                    if (toEmail) sendEmail(label, messageToSend, toEmail);
                 };
 
                 const updateBtn = document.createElement("button");
                 updateBtn.textContent = "עדכן משתנים";
                 updateBtn.onclick = () => {
-                    const newVars = {};
-                    for (const key in vars) {
-                        const newPlaceholder = prompt(`ערוך את הטקסט לתצוגה עבור ${key}:`, vars[key] || key);
-                        if (newPlaceholder) {
-                            newVars[key] = newPlaceholder;
-                        }
-                    }
-                    updateButtonVarsInDB(id, newVars);
+                    // צריך לעדכן גם את הלוגיקה של עדכון משתנים אם נרצה לשמור על הסדר
+                    alert("עדכון סדר משתנים דורש שינוי משמעותי יותר בלוגיקה.");
                 };
 
                 const deleteBtn = document.createElement("button");
@@ -173,22 +176,21 @@
                     const buttonRef = doc(db, "buttons", id);
                     await deleteDoc(buttonRef);
                     alert("הכפתור נמחק בהצלחה");
-                    loadButtonsFromDB(); // טעינה מחדש של רשימת הכפתורים
+                    loadButtonsFromDB();
                 } catch (error) {
                     console.error("שגיאה במחיקת כפתור: ", error);
                     alert("שגיאה במחיקת הכפתור");
                 }
             }
 
-            function sendEmail(subject, dynamicHTML, toEmail, filledVars) {
+            function sendEmail(subject, message, toEmail) {
                 const params = {
                     to_email: toEmail,
                     subject: subject,
-                    customHTML: dynamicHTML, // משתמשים ב-HTML הדינמי כערך של customHTML
-                    ...filledVars // מעבירים גם את המשתנים שהמשתמש מילא
+                    message: message
                 };
 
-                emailjs.send("service_laxsrg8", "template_du4eoqo", params) // ודא שה-ID של הטמפלט שלך הוא הנכון
+                emailjs.send("service_laxsrg8", "YOUR_TEMPLATE_ID", params)
                     .then(() => alert("הודעה נשלחה בהצלחה"))
                     .catch((err) => alert("שגיאה בשליחה: " + err));
             }
@@ -197,7 +199,7 @@
                 const customHTML = prompt("הכנס קוד HTML מותאם אישית לשליחה:");
                 const recipientEmail = prompt("הכנס כתובת דוא\"ל לשליחה:");
                 if (customHTML && recipientEmail) {
-                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail, {});
+                    sendEmail("הודעה מותאמת אישית", customHTML, recipientEmail);
                 }
             };
 
@@ -292,6 +294,7 @@
         <button id="openAddForm">➕ הוסף כפתור חדש</button>
         <div id="addForm" class="hidden">
             <input type="text" id="newBtnLabel" placeholder="שם כפתור" />
+            <textarea id="newBtnTemplate" placeholder="תבנית הודעה (השתמשו ב-{{שם_משתנה}})"></textarea>
             <div id="vars-container"></div>
             <button id="addVar">➕ משתנה מותאם אישית</button>
             <button id="addBtn">הוסף</button>
